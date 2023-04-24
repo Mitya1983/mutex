@@ -28,7 +28,6 @@ void tristan::IPC_Lock::lock() { sem_wait(m_mutex); }
 void tristan::IPC_Lock::unlock() {
     sem_post(m_mutex);
     sem_close(m_mutex);
-    sem_unlink(m_name.c_str());
 }
 
 auto tristan::IPC_Lock::name() const -> const std::string& { return m_name; }
