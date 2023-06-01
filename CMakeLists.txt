@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 option(BUILD_SHARED "" ON)
 option(BUILD_STATIC "" OFF)
 option(GENERATE_DEB_PACKAGE "" OFF)
+option(ENABLE_ASAN "Enables asan build. Works only with clang and in debug build" OFF)
 
 if (${BUILD_STATIC})
     message(STATUS "Static library is enabled - switching off shared one")
@@ -55,7 +56,7 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
         ${PROJECT_SOURCE_DIR}/src/*.cpp
         )
 
-set(LIB_VERSION 0.1)
+set(LIB_VERSION 1.0.0)
 
 if ("${CMAKE_INSTALL_PREFIX}" STREQUAL "")
     message(STATUS "CMAKE_INSTALL_PREFIX is not set. $ENV{HOME} directory will be used")
