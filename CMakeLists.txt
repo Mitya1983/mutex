@@ -14,43 +14,46 @@ if (${BUILD_STATIC})
 endif (${BUILD_STATIC})
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-        # using Clang
-        if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set(CMAKE_CXX_FLAGS "-g -g3 -glldb -ggdb -ggdb3 -O0 -Wall -Wextra -Wpedantic -Wfloat-equal -Werror -fsanitize=address")
-        endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        if (CMAKE_BUILD_TYPE STREQUAL "Release")
-            set(CMAKE_CXX_FLAGS "-g0 -ggdb0 -glldb0 -O3")
-        endif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        # using GCC
-        if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set(CMAKE_CXX_FLAGS "-g -ggdb3 -O0 -Wall -Wextra -Wpedantic -Wfloat-equal -Werror")
-        endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        if (CMAKE_BUILD_TYPE STREQUAL "Release")
-            set(CMAKE_CXX_FLAGS "-g0 -ggdb0 -O3")
-        endif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-        # using Visual Studio C++
-        if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set(CMAKE_CXX_FLAGS "/Zi /Od /JMC /WX")
-        endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        if (CMAKE_BUILD_TYPE STREQUAL "Release")
-            set(CMAKE_CXX_FLAGS "/Ot /O2")
-        endif (CMAKE_BUILD_TYPE STREQUAL "Release")
-    else ()
-        message(FATAL_ERROR "Compiler not supported")
-    endif ()
+    # using Clang
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_CXX_FLAGS "-g -g3 -glldb -ggdb -ggdb3 -O0 -Wall -Wextra -Wpedantic -Wfloat-equal -Werror")
+        if (${ENABLE_ASAN})
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -shared-libasan")
+        endif ()
+    endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(CMAKE_CXX_FLAGS "-g0 -ggdb0 -glldb0 -O3")
+    endif (CMAKE_BUILD_TYPE STREQUAL "Release")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # using GCC
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_CXX_FLAGS "-g -ggdb3 -O0 -Wall -Wextra -Wpedantic -Wfloat-equal -Werror")
+    endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(CMAKE_CXX_FLAGS "-g0 -ggdb0 -O3")
+    endif (CMAKE_BUILD_TYPE STREQUAL "Release")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    # using Visual Studio C++
+    if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(CMAKE_CXX_FLAGS "/Zi /Od /JMC /WX")
+    endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+        set(CMAKE_CXX_FLAGS "/Ot /O2")
+    endif (CMAKE_BUILD_TYPE STREQUAL "Release")
+else ()
+    message(FATAL_ERROR "Compiler not supported")
+endif ()
 
 include_directories(
         inc/
 )
 
-file(GLOB_RECURSE INC_FILES CONFIGURE_DEPENDS
-            ${PROJECT_SOURCE_DIR}/inc/*.hpp
-            )
-file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
-            ${PROJECT_SOURCE_DIR}/src/*.cpp
-            )
+file(GLOB INC_FILES CONFIGURE_DEPENDS
+        ${PROJECT_SOURCE_DIR}/inc/*.hpp
+        )
+file(GLOB SRC_FILES CONFIGURE_DEPENDS
+        ${PROJECT_SOURCE_DIR}/src/*.cpp
+        )
 
 set(LIB_VERSION 0.1)
 
@@ -81,6 +84,24 @@ endif (BUILD_SHARED)
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(${PROJECT_NAME} PUBLIC TRISTAN_DEBUG)
 endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
+
+if (${ENABLE_ASAN} AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    string(REPLACE "." ";" CLANG_VERSION ${CMAKE_CXX_COMPILER_VERSION})
+    list(GET CLANG_VERSION 0 CLANG_VERSION_MAJOR)
+    set(PATH_TO_CLANG_DIRECTORY "/usr/lib/llvm-${CLANG_VERSION_MAJOR}/lib/clang/")
+
+    execute_process(
+            COMMAND find ${PATH_TO_CLANG_DIRECTORY} -name libclang_rt.asan-x86_64.so
+            OUTPUT_VARIABLE PATH_TO_CLANG_LIB_DIRECTORY
+    )
+    string(STRIP ${PATH_TO_CLANG_LIB_DIRECTORY} PATH_TO_CLANG_LIB_DIRECTORY)
+    target_link_directories(${PROJECT_NAME} PRIVATE
+            ${PATH_TO_CLANG_LIB_DIRECTORY}
+            )
+    target_link_libraries(${PROJECT_NAME} PRIVATE
+            -lclang_rt.asan-x86_64
+            )
+endif (${ENABLE_ASAN} AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 target_sources(
         ${PROJECT_NAME}
