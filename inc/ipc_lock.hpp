@@ -10,14 +10,20 @@ using Mutex = sem_t*;
 #endif
 
 #include <string>
+#include <chrono>
+#include <variant>
+#include <atomic>
 
 namespace tristan {
+
+    using ChronoDuration = std::
+        variant< std::monostate, std::chrono::minutes, std::chrono::seconds, std::chrono::milliseconds, std::chrono::microseconds, std::chrono::nanoseconds >;
 
     class IPC_Lock {
     public:
         /**
         * \brief Constructor which by default locks the mutex.
-        * \param lock bool.
+        * \param lock bool. Default is true
         * \throws std::invalid_argument if name is empty
         * \throws std::system_error holding the std::error_code of std::system_category
         */
@@ -40,6 +46,8 @@ namespace tristan {
 
         void unlock();
 
+        [[nodiscard]] auto tryLock(ChronoDuration p_time_out = std::monostate()) -> bool;
+
         [[nodiscard]] auto name() const -> const std::string&;
 
     protected:
@@ -47,6 +55,8 @@ namespace tristan {
         std::string m_name;
 
         Mutex m_mutex;
+
+        std::atomic_bool m_locked;
     };
 }  // namespace tristan
 
