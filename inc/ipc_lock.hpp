@@ -12,6 +12,7 @@ using Mutex = sem_t*;
 #include <string>
 #include <chrono>
 #include <variant>
+#include <atomic>
 
 namespace tristan {
 
@@ -55,7 +56,7 @@ namespace tristan {
 
         Mutex m_mutex;
 
-        bool m_locked;
+        std::atomic_bool m_locked;
     };
 }  // namespace tristan
 

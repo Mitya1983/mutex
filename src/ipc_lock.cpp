@@ -29,14 +29,14 @@ tristan::IPC_Lock::~IPC_Lock() { this->unlock(); }
 
 void tristan::IPC_Lock::lock() {
     sem_wait(m_mutex);
-    m_locked = true;
+    m_locked.store(true, std::memory_order_acquire);
 }
 
 void tristan::IPC_Lock::unlock() {
     if (m_locked) {
         sem_post(m_mutex);
         sem_close(m_mutex);
-        m_locked = false;
+        m_locked.store(false, std::memory_order_release);
     }
 }
 
