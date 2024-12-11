@@ -16,7 +16,7 @@
 #include <string>
 #include <variant>
 
-namespace mt::utility::mutex {
+namespace mt::mutex {
     class Mutex {
       public:
         Mutex() = default;

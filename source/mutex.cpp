@@ -7,25 +7,25 @@
 #include <system_error>
 #include <cassert>
 
-void mt::utility::mutex::Mutex::lock() {
+void mt::mutex::Mutex::lock() {
     while (m_lock.test_and_set(std::memory_order_consume)) {
         m_lock.wait(true, std::memory_order_consume);
     }
 }
 
-void mt::utility::mutex::Mutex::unlock() {
+void mt::mutex::Mutex::unlock() {
     m_lock.clear(std::memory_order_release);
     m_lock.notify_all();
 }
 
-auto mt::utility::mutex::Mutex::try_lock() -> bool {
+auto mt::mutex::Mutex::try_lock() -> bool {
     if (m_lock.test_and_set(std::memory_order_consume)) {
         return false;
     }
     return true;
 }
 
-void mt::utility::mutex::RecursiveMutex::lock() {
+void mt::mutex::RecursiveMutex::lock() {
     if (m_lock_counter.load(std::memory_order::relaxed) > 0) {
         if (m_thread_id.load(std::memory_order::relaxed) == std::this_thread::get_id()) {
             ++m_lock_counter;
@@ -39,7 +39,7 @@ void mt::utility::mutex::RecursiveMutex::lock() {
     ++m_lock_counter;
 }
 
-void mt::utility::mutex::RecursiveMutex::unlock() {
+void mt::mutex::RecursiveMutex::unlock() {
     if (m_lock_counter.load(std::memory_order_relaxed) == 0) {
 #ifdef MT_DEBUG
         throw std::runtime_error("unlock is called without corresponding lock call");
@@ -54,7 +54,7 @@ void mt::utility::mutex::RecursiveMutex::unlock() {
     }
 }
 
-auto mt::utility::mutex::RecursiveMutex::try_lock() -> bool {
+auto mt::mutex::RecursiveMutex::try_lock() -> bool {
     if (m_lock_counter.load(std::memory_order::relaxed) > 0) {
         if (m_thread_id.load(std::memory_order::relaxed) == std::this_thread::get_id()) {
             ++m_lock_counter;
@@ -70,18 +70,18 @@ auto mt::utility::mutex::RecursiveMutex::try_lock() -> bool {
     return true;
 }
 
-void mt::utility::mutex::SharedMutex::lock() {
+void mt::mutex::SharedMutex::lock() {
     while (m_lock.test_and_set(std::memory_order_consume)) {
         m_lock.wait(true, std::memory_order_consume);
     }
 }
 
-void mt::utility::mutex::SharedMutex::unlock() {
+void mt::mutex::SharedMutex::unlock() {
     m_lock.clear(std::memory_order_release);
     m_lock.notify_all();
 }
 
-void mt::utility::mutex::SharedMutex::lock_shared() {
+void mt::mutex::SharedMutex::lock_shared() {
     if (m_read_counter.load(std::memory_order_relaxed) > 0) {
         ++m_read_counter;
         return;
@@ -92,7 +92,7 @@ void mt::utility::mutex::SharedMutex::lock_shared() {
     ++m_read_counter;
 }
 
-void mt::utility::mutex::SharedMutex::unlock_shared() {
+void mt::mutex::SharedMutex::unlock_shared() {
     if (m_read_counter.load(std::memory_order_relaxed) == 0) {
 #ifdef MT_DEBUG
         throw std::runtime_error("unlock_shared is called without corresponding lock_shared call");
@@ -107,14 +107,14 @@ void mt::utility::mutex::SharedMutex::unlock_shared() {
     }
 }
 
-auto mt::utility::mutex::SharedMutex::try_lock() -> bool {
+auto mt::mutex::SharedMutex::try_lock() -> bool {
     if (m_lock.test_and_set(std::memory_order_consume)) {
         return false;
     }
     return true;
 }
 
-auto mt::utility::mutex::SharedMutex::try_lock_shared() -> bool {
+auto mt::mutex::SharedMutex::try_lock_shared() -> bool {
     if (m_read_counter.load(std::memory_order_relaxed) > 0) {
         ++m_read_counter;
         return true;
@@ -126,13 +126,13 @@ auto mt::utility::mutex::SharedMutex::try_lock_shared() -> bool {
     return true;
 }
 
-void mt::utility::mutex::Spinlock::lock() {
+void mt::mutex::Spinlock::lock() {
     while (m_lock.test_and_set(std::memory_order_consume)) { }
 }
 
-void mt::utility::mutex::Spinlock::unlock() { m_lock.clear(std::memory_order_release); }
+void mt::mutex::Spinlock::unlock() { m_lock.clear(std::memory_order_release); }
 
-auto mt::utility::mutex::Spinlock::try_lock() -> bool {
+auto mt::mutex::Spinlock::try_lock() -> bool {
     if (m_lock.test_and_set(std::memory_order_consume)) {
         return false;
     }
@@ -141,7 +141,7 @@ auto mt::utility::mutex::Spinlock::try_lock() -> bool {
 
 //TODO: Windows implementation
 
-mt::utility::mutex::IPCMutex::IPCMutex(std::string name) :
+mt::mutex::IPCMutex::IPCMutex(std::string name) :
     m_name{std::move(name)} {
 
     if (m_name.empty()) {
@@ -154,12 +154,12 @@ mt::utility::mutex::IPCMutex::IPCMutex(std::string name) :
     }
 }
 
-void mt::utility::mutex::IPCMutex::lock() {
+void mt::mutex::IPCMutex::lock() {
     sem_wait(m_mutex);
     m_locked.store(true, std::memory_order_relaxed);
 }
 
-void mt::utility::mutex::IPCMutex::unlock() {
+void mt::mutex::IPCMutex::unlock() {
     if (m_locked.load(std::memory_order_relaxed)) {
         sem_post(m_mutex);
         sem_close(m_mutex);
@@ -167,7 +167,7 @@ void mt::utility::mutex::IPCMutex::unlock() {
     }
 }
 
-auto mt::utility::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) const -> bool {
+auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) const -> bool {
     if (std::holds_alternative< std::monostate >(p_time_out)) {
         if (const auto lock_result = sem_trywait(m_mutex); lock_result == 0) {
             return true;
@@ -203,6 +203,6 @@ auto mt::utility::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) const -> 
     return false;
 }
 
-auto mt::utility::mutex::IPCMutex::name() const -> const std::string& { return m_name; }
+auto mt::mutex::IPCMutex::name() const -> const std::string& { return m_name; }
 
-auto mt::utility::mutex::IPCMutex::native_handle() const -> NativeHandle { return m_mutex; }
+auto mt::mutex::IPCMutex::native_handle() const -> NativeHandle { return m_mutex; }
