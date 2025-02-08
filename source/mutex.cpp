@@ -152,22 +152,46 @@ mt::mutex::IPCMutex::IPCMutex(std::string name) :
     if (m_mutex == SEM_FAILED) {
         throw std::system_error(std::error_code(errno, std::system_category()));
     }
+    m_opened = true;
+}
+
+mt::mutex::IPCMutex::~IPCMutex() {
+    if (m_locked) {
+        sem_post(m_mutex);
+        sem_close(m_mutex);
+    }
+    sem_unlink(m_name.c_str());
 }
 
 void mt::mutex::IPCMutex::lock() {
+    if (not m_opened) {
+        m_mutex = sem_open(m_name.c_str(), O_CREAT, 0666, 1);
+        if (m_mutex == SEM_FAILED) {
+            throw std::system_error(std::error_code(errno, std::system_category()));
+        }
+        m_opened = true;
+    }
     sem_wait(m_mutex);
-    m_locked.store(true, std::memory_order_relaxed);
+    m_locked = true;
 }
 
 void mt::mutex::IPCMutex::unlock() {
-    if (m_locked.load(std::memory_order_relaxed)) {
+    if (m_locked) {
         sem_post(m_mutex);
+        m_locked = false;
         sem_close(m_mutex);
-        m_locked.store(false, std::memory_order_relaxed);
+        m_opened = false;
     }
 }
 
-auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) const -> bool {
+auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) -> bool {
+    if (not m_opened) {
+        m_mutex = sem_open(m_name.c_str(), O_CREAT, 0666, 1);
+        if (m_mutex == SEM_FAILED) {
+            throw std::system_error(std::error_code(errno, std::system_category()));
+        }
+        m_opened = true;
+    }
     if (std::holds_alternative< std::monostate >(p_time_out)) {
         if (const auto lock_result = sem_trywait(m_mutex); lock_result == 0) {
             return true;
