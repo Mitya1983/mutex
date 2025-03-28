@@ -1,6 +1,6 @@
 // Created by Mitia Tristan on 24.10.24.
-#ifndef MT_MUTEX_HPP
-#define MT_MUTEX_HPP
+#ifndef MUTEX_INCLUDE_MUTEX_HPP
+#define MUTEX_INCLUDE_MUTEX_HPP
 
 #include <atomic>
 #include <thread>
@@ -137,4 +137,4 @@ namespace mt::mutex {
         bool m_opened{false};
     };
 }  // namespace mt::utility::mutex
-#endif  //MT_MUTEX_HPP
+#endif  //MUTEX_INCLUDE_MUTEX_HPP
