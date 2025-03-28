@@ -121,19 +121,20 @@ namespace mt::mutex {
         IPCMutex& operator=(const IPCMutex& other) = delete;
         IPCMutex& operator=(IPCMutex&& other) = delete;
 
-        ~IPCMutex() = default;
+        ~IPCMutex();
 
         void lock();
         void unlock();
 
-        [[nodiscard]] auto try_lock(ChronoDuration p_time_out = std::monostate()) const -> bool;
+        [[nodiscard]] auto try_lock(ChronoDuration p_time_out = std::monostate()) -> bool;
         [[nodiscard]] auto name() const -> const std::string&;
         [[nodiscard]] auto native_handle() const -> NativeHandle;
 
       private:
         std::string m_name;
         NativeHandle m_mutex{nullptr};
-        std::atomic_bool m_locked{false};
+        bool m_locked{false};
+        bool m_opened{false};
     };
 }  // namespace mt::utility::mutex
 #endif  //MT_MUTEX_HPP
