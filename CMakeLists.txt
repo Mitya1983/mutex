@@ -45,7 +45,7 @@ if (PROJECT_IS_TOP_LEVEL)
     endif ()
 endif ()
 include_directories(
-        include/
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 file(GLOB_RECURSE INC_FILES CONFIGURE_DEPENDS
@@ -119,16 +119,4 @@ set_target_properties(
         VERSION ${LIB_VERSION}
         OUTPUT_NAME ${PROJECT_NAME}
 )
-if (${BUILD_DOCS})
-    find_package(Doxygen REQUIRED doxygen)
-    set(DOXYGEN_OUTPUT_DIRECTORY ${PROJECT_INSTALL_DIR}/Docs)
-    set(DOXYGEN_GENERATE_HTML YES)
-    set(DOXYGEN_GENERATE_LATEX NO)
-    set(DOXYGEN_SORT_MEMBER_DOCS NO)
-    doxygen_add_docs(
-            doxygen
-            ${PROJECT_SOURCE_DIR}/inc
-            ALL
-    )
-endif ()
 
