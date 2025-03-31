@@ -161,6 +161,7 @@ mt::mutex::IPCMutex::~IPCMutex() {
         sem_close(m_mutex);
     }
     sem_unlink(m_name.c_str());
+    sem_destroy(m_mutex);
 }
 
 void mt::mutex::IPCMutex::lock() {
