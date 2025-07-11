@@ -45,38 +45,39 @@ if (PROJECT_IS_TOP_LEVEL)
     endif ()
 endif ()
 include_directories(
-        ${CMAKE_CURRENT_SOURCE_DIR}
-)
+        include/
+        )
 
 file(GLOB_RECURSE INC_FILES CONFIGURE_DEPENDS
-        include/*.hpp
-)
+     include/*.hpp
+     )
 file(GLOB_RECURSE SRC_FILES CONFIGURE_DEPENDS
-        source/*.cpp
-)
+     source/*.cpp
+     )
 
 set(LIB_VERSION 2.0.0)
 
 if ("${CMAKE_INSTALL_PREFIX}" STREQUAL "")
-    message(STATUS "${PROJECT_NAME}: CMAKE_INSTALL_PREFIX is not set. ${CMAKE_CURRENT_BINARY_DIR} directory will be used")
-    set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_BINARY_DIR})
-else()
+    message(STATUS "${PROJECT_NAME}: CMAKE_INSTALL_PREFIX is not set. ${CMAKE_BINARY_DIR} directory will be used")
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/mt_libs")
+else ()
     set(CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}/mt_libs")
 endif ()
 
 string(TOLOWER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
 
-set(LIBRARY_DIR ${CMAKE_INSTALL_PREFIX}/${BUILD_TYPE})
-message(STATUS "${PROJECT_NAME}: Library install directory is set to ${LIBRARY_DIR}")
-set(INCLUDE_DIR ${LIBRARY_DIR}/include)
-message(STATUS "${PROJECT_NAME}: Include install directory is set to ${INCLUDE_DIR}")
+set(PROJECT_INSTALL_DIR ${CMAKE_INSTALL_PREFIX}/${PROJECT_NAME})
+set(LIBRARY_INSTALL_DIR ${PROJECT_INSTALL_DIR}/${BUILD_TYPE})
+message(STATUS "${PROJECT_NAME}: Library install directory is set to ${LIBRARY_INSTALL_DIR}")
+set(INCLUDE_INSTALL_DIR ${LIBRARY_INSTALL_DIR}/include)
+message(STATUS "${PROJECT_NAME}: Include install directory is set to ${INCLUDE_INSTALL_DIR}")
 
 if (NOT ${PROJECT_IS_TOP_LEVEL})
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
         add_compile_definitions(MT_DEBUG)
     endif ()
-    set(MUTEX_LIB_DIR ${LIBRARY_DIR} PARENT_SCOPE)
-    set(MUTEX_INCLUDE_DIR ${INCLUDE_DIR} PARENT_SCOPE)
+    set(MUTEX_LIBRARY_DIR ${LIBRARY_INSTALL_DIR} PARENT_SCOPE)
+    set(MUTEX_INCLUDE_DIR ${INCLUDE_INSTALL_DIR} PARENT_SCOPE)
 endif ()
 
 if (${BUILD_STATIC})
@@ -95,27 +96,35 @@ if (${ENABLE_ASAN} AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_BUILD_TY
 
     execute_process(
             COMMAND find ${PATH_TO_CLANG_DIRECTORY} -name libclang_rt.asan-x86_64.so
-            OUTPUT_VARIABLE PATH_TO_CLANG_LIB_DIRECTORY
-    )
-    string(STRIP ${PATH_TO_CLANG_LIB_DIRECTORY} PATH_TO_CLANG_LIB_DIRECTORY)
-    target_link_directories(${PROJECT_NAME} PRIVATE
-            ${PATH_TO_CLANG_LIB_DIRECTORY}
-    )
+            OUTPUT_VARIABLE PATH_TO_CLANG_LIB_ASAN
+            )
     target_link_libraries(${PROJECT_NAME} PRIVATE
-            -lclang_rt.asan-x86_64
-    )
+                          ${PATH_TO_CLANG_LIB_ASAN}
+                          )
 endif ()
 
 target_sources(
         ${PROJECT_NAME}
         PRIVATE ${SRC_FILES}
         PUBLIC ${INC_FILES}
-)
+        )
 
 set_target_properties(
         ${PROJECT_NAME}
         PROPERTIES
         VERSION ${LIB_VERSION}
         OUTPUT_NAME ${PROJECT_NAME}
-)
+        )
+if (${BUILD_DOCS})
+    find_package(Doxygen REQUIRED doxygen)
+    set(DOXYGEN_OUTPUT_DIRECTORY ${PROJECT_INSTALL_DIR}/Docs)
+    set(DOXYGEN_GENERATE_HTML YES)
+    set(DOXYGEN_GENERATE_LATEX NO)
+    set(DOXYGEN_SORT_MEMBER_DOCS NO)
+    doxygen_add_docs(
+            doxygen
+            ${PROJECT_SOURCE_DIR}/inc
+            ALL
+            )
+endif ()
 
