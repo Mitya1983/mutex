@@ -1,5 +1,5 @@
 // Created by Mitia Tristan on 24.10.24.
-#include "include/mutex.hpp"
+#include "mutex.hpp"
 
 #include <fcntl.h>
 
