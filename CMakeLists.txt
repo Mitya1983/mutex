@@ -51,7 +51,7 @@ include_directories(
 
 if (${PROJECT_IS_TOP_LEVEL})
     if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-        add_compile_definitions(MT_DEBUG)
+        add_compile_definitions(DEBUG_BUILD)
     endif ()
 endif ()
 

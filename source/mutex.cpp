@@ -41,7 +41,7 @@ void mt::mutex::RecursiveMutex::lock() {
 
 void mt::mutex::RecursiveMutex::unlock() {
     if (m_lock_counter.load(std::memory_order_relaxed) == 0) {
-#ifdef MT_DEBUG
+#if defined (DEBUG_BUILD)
         throw std::runtime_error("unlock is called without corresponding lock call");
 #else
         return;
@@ -94,7 +94,7 @@ void mt::mutex::SharedMutex::lock_shared() {
 
 void mt::mutex::SharedMutex::unlock_shared() {
     if (m_read_counter.load(std::memory_order_relaxed) == 0) {
-#ifdef MT_DEBUG
+#if defined (DEBUG_BUILD)
         throw std::runtime_error("unlock_shared is called without corresponding lock_shared call");
 #else
         return;
