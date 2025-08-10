@@ -99,7 +99,7 @@ if (NOT ${PROJECT_IS_TOP_LEVEL})
     set(MUTEX_INCLUDE_DIR ${INCLUDE_DIR} PARENT_SCOPE)
 endif ()
 
-set(LIB_VERSION 3.0.0)
+set(LIB_VERSION 1.0.0)
 
 set_target_properties(
         ${PROJECT_NAME}
