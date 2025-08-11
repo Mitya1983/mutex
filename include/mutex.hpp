@@ -54,7 +54,7 @@ namespace mt::mutex {
         [[nodiscard]] auto try_lock() -> bool;
 
       private:
-        std::atomic< std::thread::id > m_thread_id{std::thread::id{0}};
+        std::atomic< std::thread::id > m_thread_id{std::thread::id{}};
         std::atomic_uint8_t m_lock_counter{0};
         std::atomic_flag m_lock{false};
     };
