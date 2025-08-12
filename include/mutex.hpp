@@ -34,7 +34,7 @@ namespace mt::mutex {
         [[nodiscard]] auto try_lock() -> bool;
 
       private:
-        std::atomic_flag m_lock{false};
+        std::atomic_flag m_lock;
     };
 
     class RecursiveMutex {
@@ -56,7 +56,7 @@ namespace mt::mutex {
       private:
         std::atomic< std::thread::id > m_thread_id{std::thread::id{}};
         std::atomic_uint8_t m_lock_counter{0};
-        std::atomic_flag m_lock{false};
+        std::atomic_flag m_lock;
     };
 
     class SharedMutex {
@@ -80,7 +80,7 @@ namespace mt::mutex {
 
       private:
         std::atomic_uint8_t m_read_counter{0};
-        std::atomic_flag m_lock{false};
+        std::atomic_flag m_lock;
     };
 
     class Spinlock {
@@ -100,7 +100,7 @@ namespace mt::mutex {
         [[nodiscard]] auto try_lock() -> bool;
 
       private:
-        std::atomic_flag m_lock{false};
+        std::atomic_flag m_lock;
     };
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -134,7 +134,6 @@ namespace mt::mutex {
         std::string m_name;
         NativeHandle m_mutex{nullptr};
         bool m_locked{false};
-        bool m_opened{false};
     };
 }  // namespace mt::utility::mutex
 #endif  //MUTEX_INCLUDE_MUTEX_HPP

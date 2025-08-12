@@ -6,7 +6,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(BUILD_STATIC "Build static library" ON)
-option(BUILD_DOCS "Build docs" OFF)
 option(ENABLE_ASAN "Enables asan build" OFF)
 
 if (PROJECT_IS_TOP_LEVEL)
