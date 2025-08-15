@@ -34,7 +34,7 @@ if (PROJECT_IS_TOP_LEVEL)
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         # using Visual Studio C++
         if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set(CMAKE_CXX_FLAGS "/Zi /Od /JMC /WX /EHsc")
+            set(CMAKE_CXX_FLAGS "/DEBUG /Zi /Od /JMC /WX /EHsc")
             set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebug")
         endif ()
         if (CMAKE_BUILD_TYPE STREQUAL "Release")
