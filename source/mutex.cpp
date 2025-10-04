@@ -172,7 +172,6 @@ mt::mutex::IPCMutex::~IPCMutex() {
         sem_close(m_mutex);
     }
     sem_unlink(m_name.c_str());
-    sem_destroy(m_mutex);
 #endif
 }
 
@@ -228,9 +227,23 @@ auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) -> bool {
             p_time_out);
         int32_t lock_result{0};
 #if defined(_WIN32) || defined(_WIN64)
-        WaitForSingleObject(m_mutex, std::chrono::duration_cast<std::chrono::milliseconds>(time_out).count());
+        WaitForSingleObject(m_mutex, std::chrono::duration_cast< std::chrono::milliseconds >(time_out).count());
         if (lock_result == WAIT_OBJECT_0) {
             return true;
+        }
+#elif defined(__APPLE__)
+        while (true) {
+            if (lock_result == sem_trywait(m_mutex)) {
+                return true;
+            }
+            if (errno != EAGAIN) {
+                throw std::system_error(std::error_code(errno, std::system_category()));
+            }
+            if (time_out <= std::chrono::nanoseconds{0}) {
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::nanoseconds{1000});
+            time_out -= std::chrono::nanoseconds{1000};
         }
 #else
         timespec timespec{};

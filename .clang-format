@@ -50,7 +50,7 @@ BreakBeforeTernaryOperators: true
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterComma
 BreakStringLiterals: true
-ColumnLimit: 240
+ColumnLimit: 180
 CompactNamespaces: false
 ContinuationIndentWidth: 4
 EmptyLineAfterAccessModifier: Never
@@ -79,7 +79,7 @@ PointerAlignment: Left
 QualifierAlignment: Left
 #QualifierOrder: ['inline', 'static', 'const', 'volatile', 'type']
 ReferenceAlignment: Pointer
-ReflowComments: false
+ReflowComments: Never
 RemoveBracesLLVM: false
 SeparateDefinitionBlocks: Always
 SortIncludes: Never
