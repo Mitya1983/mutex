@@ -9,7 +9,7 @@ option(BUILD_STATIC "Build static library" ON)
 option(ENABLE_ASAN "Enables asan build" OFF)
 
 if (PROJECT_IS_TOP_LEVEL)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         # using Clang
         if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             set(CMAKE_CXX_FLAGS "-g -g3 -glldb -ggdb -ggdb3 -O0 -Wall -Wextra -Wpedantic -Wfloat-equal -Werror")
