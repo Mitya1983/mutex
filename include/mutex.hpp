@@ -65,8 +65,8 @@ namespace mt::mutex {
 
         SharedMutex(const SharedMutex&) = delete;
         SharedMutex(SharedMutex&&) = delete;
-        SharedMutex& operator=(const RecursiveMutex&) = delete;
-        RecursiveMutex& operator=(SharedMutex&&) = delete;
+        SharedMutex& operator=(const SharedMutex&) = delete;
+        SharedMutex& operator=(SharedMutex&&) = delete;
 
         ~SharedMutex() = default;
 
@@ -79,8 +79,8 @@ namespace mt::mutex {
         [[nodiscard]] auto try_lock_shared() -> bool;
 
       private:
-        std::atomic_uint8_t m_read_counter{0};
-        std::atomic_flag m_lock;
+        // 0 = unlocked, -1 = write-locked, >0 = number of active readers
+        std::atomic< int32_t > m_state{0};
     };
 
     class Spinlock {
@@ -133,7 +133,7 @@ namespace mt::mutex {
       private:
         std::string m_name;
         NativeHandle m_mutex{nullptr};
-        bool m_locked{false};
+        std::atomic_bool m_locked{false};
     };
-}  // namespace mt::utility::mutex
+}  // namespace mt::mutex
 #endif  //MUTEX_INCLUDE_MUTEX_HPP

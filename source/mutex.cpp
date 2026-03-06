@@ -8,8 +8,8 @@
 #include <cassert>
 
 void mt::mutex::Mutex::lock() {
-    while (m_lock.test_and_set(std::memory_order_consume)) {
-        m_lock.wait(true, std::memory_order_consume);
+    while (m_lock.test_and_set(std::memory_order_acquire)) {
+        m_lock.wait(true, std::memory_order_relaxed);
     }
 }
 
@@ -19,27 +19,31 @@ void mt::mutex::Mutex::unlock() {
 }
 
 auto mt::mutex::Mutex::try_lock() -> bool {
-    if (m_lock.test_and_set(std::memory_order_consume)) {
-        return false;
-    }
-    return true;
+    return not m_lock.test_and_set(std::memory_order_acquire);
 }
 
 void mt::mutex::RecursiveMutex::lock() {
-    if (m_lock_counter.load(std::memory_order::relaxed) > 0) {
-        if (m_thread_id.load(std::memory_order::relaxed) == std::this_thread::get_id()) {
-            ++m_lock_counter;
+    if (m_lock_counter.load(std::memory_order_relaxed) > 0) {
+        if (m_thread_id.load(std::memory_order_relaxed) == std::this_thread::get_id()) {
+            m_lock_counter.fetch_add(1, std::memory_order_relaxed);
             return;
         }
     }
-    while (m_lock.test_and_set(std::memory_order_consume)) {
+    while (m_lock.test_and_set(std::memory_order_acquire)) {
         m_lock.wait(true, std::memory_order_relaxed);
     }
     m_thread_id.store(std::this_thread::get_id(), std::memory_order_relaxed);
-    ++m_lock_counter;
+    m_lock_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
 void mt::mutex::RecursiveMutex::unlock() {
+    if (m_thread_id.load(std::memory_order_relaxed) != std::this_thread::get_id()) {
+#if defined(DEBUG_BUILD)
+        throw std::runtime_error("unlock is called from a thread that does not own the lock");
+#else
+        return;
+#endif
+    }
     if (m_lock_counter.load(std::memory_order_relaxed) == 0) {
 #if defined(DEBUG_BUILD)
         throw std::runtime_error("unlock is called without corresponding lock call");
@@ -47,96 +51,88 @@ void mt::mutex::RecursiveMutex::unlock() {
         return;
 #endif
     }
-    --m_lock_counter;
-    if (m_lock_counter.load(std::memory_order_relaxed) == 0) {
+    if (m_lock_counter.fetch_sub(1, std::memory_order_relaxed) == 1) {
+        m_thread_id.store(std::thread::id{}, std::memory_order_relaxed);
         m_lock.clear(std::memory_order_release);
         m_lock.notify_all();
     }
 }
 
 auto mt::mutex::RecursiveMutex::try_lock() -> bool {
-    if (m_lock_counter.load(std::memory_order::relaxed) > 0) {
-        if (m_thread_id.load(std::memory_order::relaxed) == std::this_thread::get_id()) {
-            ++m_lock_counter;
+    if (m_lock_counter.load(std::memory_order_relaxed) > 0) {
+        if (m_thread_id.load(std::memory_order_relaxed) == std::this_thread::get_id()) {
+            m_lock_counter.fetch_add(1, std::memory_order_relaxed);
             return true;
         }
         return false;
     }
-    if (m_lock.test_and_set(std::memory_order_consume)) {
+    if (m_lock.test_and_set(std::memory_order_acquire)) {
         return false;
     }
     m_thread_id.store(std::this_thread::get_id(), std::memory_order_relaxed);
-    ++m_lock_counter;
+    m_lock_counter.fetch_add(1, std::memory_order_relaxed);
     return true;
 }
 
 void mt::mutex::SharedMutex::lock() {
-    while (m_lock.test_and_set(std::memory_order_consume)) {
-        m_lock.wait(true, std::memory_order_consume);
+    while (true) {
+        int32_t expected = 0;
+        if (m_state.compare_exchange_weak(expected, -1, std::memory_order_acquire)) {
+            return;
+        }
+        m_state.wait(expected, std::memory_order_relaxed);
     }
 }
 
 void mt::mutex::SharedMutex::unlock() {
-    m_lock.clear(std::memory_order_release);
-    m_lock.notify_all();
+    m_state.store(0, std::memory_order_release);
+    m_state.notify_all();
 }
 
 void mt::mutex::SharedMutex::lock_shared() {
-    if (m_read_counter.load(std::memory_order_relaxed) > 0) {
-        ++m_read_counter;
-        return;
+    while (true) {
+        if (int32_t expected = m_state.load(std::memory_order_relaxed); expected >= 0) {
+            if (m_state.compare_exchange_weak(expected, expected + 1, std::memory_order_acquire)) {
+                return;
+            }
+        } else {
+            m_state.wait(expected, std::memory_order_relaxed);
+        }
     }
-    while (m_lock.test_and_set(std::memory_order_consume)) {
-        m_lock.wait(true, std::memory_order_consume);
-    }
-    ++m_read_counter;
 }
 
 void mt::mutex::SharedMutex::unlock_shared() {
-    if (m_read_counter.load(std::memory_order_relaxed) == 0) {
-#if defined(DEBUG_BUILD)
-        throw std::runtime_error("unlock_shared is called without corresponding lock_shared call");
-#else
-        return;
-#endif
-    }
-    --m_read_counter;
-    if (m_read_counter.load(std::memory_order_relaxed) == 0) {
-        m_lock.clear(std::memory_order_release);
-        m_lock.notify_all();
+    if (m_state.fetch_sub(1, std::memory_order_release) == 1) {
+        m_state.notify_all();
     }
 }
 
 auto mt::mutex::SharedMutex::try_lock() -> bool {
-    if (m_lock.test_and_set(std::memory_order_consume)) {
-        return false;
-    }
-    return true;
+    int32_t expected = 0;
+    return m_state.compare_exchange_strong(expected, -1, std::memory_order_acquire);
 }
 
 auto mt::mutex::SharedMutex::try_lock_shared() -> bool {
-    if (m_read_counter.load(std::memory_order_relaxed) > 0) {
-        ++m_read_counter;
-        return true;
-    }
-    if (m_lock.test_and_set(std::memory_order_consume)) {
+    int32_t expected = m_state.load(std::memory_order_relaxed);
+    if (expected < 0) {
         return false;
     }
-    ++m_read_counter;
-    return true;
+    return m_state.compare_exchange_strong(expected, expected + 1, std::memory_order_acquire);
 }
 
 void mt::mutex::Spinlock::lock() {
-    while (m_lock.test_and_set(std::memory_order_consume)) { }
+    while (true) {
+        if (not m_lock.test_and_set(std::memory_order_acquire)) {
+            return;
+        }
+        while (m_lock.test(std::memory_order_relaxed)) { }
+    }
 }
 
 void mt::mutex::Spinlock::unlock() { m_lock.clear(std::memory_order_release); }
 
 auto mt::mutex::Spinlock::try_lock() -> bool {
-    if (m_lock.test_and_set(std::memory_order_consume)) {
-        return false;
-    }
-    return true;
+    return not m_lock.test_and_set(std::memory_order_acquire);
 }
 
 mt::mutex::IPCMutex::IPCMutex(std::string name) :
@@ -162,12 +158,12 @@ mt::mutex::IPCMutex::IPCMutex(std::string name) :
 
 mt::mutex::IPCMutex::~IPCMutex() {
 #if defined(_WIN32) || defined(_WIN64)
-    if (m_locked) {
+    if (m_locked.load()) {
         ReleaseSemaphore(m_mutex, 1, nullptr);
     }
     CloseHandle(m_mutex);
 #else
-    if (m_locked) {
+    if (m_locked.load()) {
         sem_post(m_mutex);
         sem_close(m_mutex);
     }
@@ -181,17 +177,17 @@ void mt::mutex::IPCMutex::lock() {
 #else
     sem_wait(m_mutex);
 #endif
-    m_locked = true;
+    m_locked.store(true);
 }
 
 void mt::mutex::IPCMutex::unlock() {
-    if (m_locked) {
+    if (m_locked.load()) {
 #if defined(_WIN32) || defined(_WIN64)
         ReleaseSemaphore(m_mutex, 1, nullptr);
 #else
         sem_post(m_mutex);
 #endif
-        m_locked = false;
+        m_locked.store(false);
     }
 }
 
@@ -225,15 +221,14 @@ auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) -> bool {
                 }
             },
             p_time_out);
-        int32_t lock_result{0};
 #if defined(_WIN32) || defined(_WIN64)
-        WaitForSingleObject(m_mutex, std::chrono::duration_cast< std::chrono::milliseconds >(time_out).count());
+        auto lock_result = WaitForSingleObject(m_mutex, std::chrono::duration_cast< std::chrono::milliseconds >(time_out).count());
         if (lock_result == WAIT_OBJECT_0) {
             return true;
         }
 #elif defined(__APPLE__)
         while (true) {
-            if (lock_result == sem_trywait(m_mutex)) {
+            if (sem_trywait(m_mutex) == 0) {
                 return true;
             }
             if (errno != EAGAIN) {
@@ -248,6 +243,7 @@ auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) -> bool {
 #else
         timespec timespec{};
         timespec.tv_sec = std::chrono::time_point_cast< std::chrono::seconds >(std::chrono::system_clock::now()).time_since_epoch().count() + std::chrono::duration_cast< std::chrono::seconds >(time_out).count();
+        int32_t lock_result{0};
         while ((lock_result = sem_timedwait(m_mutex, &timespec)) == -1 && errno == EINTR) { }
         if (lock_result == 0) {
             return true;
