@@ -7,22 +7,20 @@
 #include <system_error>
 #include <cassert>
 
-void mt::mutex::Mutex::lock() {
+void mt::mutex::mutex::lock() {
     while (m_lock.test_and_set(std::memory_order_acquire)) {
         m_lock.wait(true, std::memory_order_relaxed);
     }
 }
 
-void mt::mutex::Mutex::unlock() {
+void mt::mutex::mutex::unlock() {
     m_lock.clear(std::memory_order_release);
     m_lock.notify_all();
 }
 
-auto mt::mutex::Mutex::try_lock() -> bool {
-    return not m_lock.test_and_set(std::memory_order_acquire);
-}
+auto mt::mutex::mutex::try_lock() -> bool { return not m_lock.test_and_set(std::memory_order_acquire); }
 
-void mt::mutex::RecursiveMutex::lock() {
+void mt::mutex::recursive_mutex::lock() {
     if (m_lock_counter.load(std::memory_order_relaxed) > 0) {
         if (m_thread_id.load(std::memory_order_relaxed) == std::this_thread::get_id()) {
             m_lock_counter.fetch_add(1, std::memory_order_relaxed);
@@ -36,7 +34,7 @@ void mt::mutex::RecursiveMutex::lock() {
     m_lock_counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-void mt::mutex::RecursiveMutex::unlock() {
+void mt::mutex::recursive_mutex::unlock() {
     if (m_thread_id.load(std::memory_order_relaxed) != std::this_thread::get_id()) {
 #if defined(DEBUG_BUILD)
         throw std::runtime_error("unlock is called from a thread that does not own the lock");
@@ -58,7 +56,7 @@ void mt::mutex::RecursiveMutex::unlock() {
     }
 }
 
-auto mt::mutex::RecursiveMutex::try_lock() -> bool {
+auto mt::mutex::recursive_mutex::try_lock() -> bool {
     if (m_lock_counter.load(std::memory_order_relaxed) > 0) {
         if (m_thread_id.load(std::memory_order_relaxed) == std::this_thread::get_id()) {
             m_lock_counter.fetch_add(1, std::memory_order_relaxed);
@@ -74,7 +72,7 @@ auto mt::mutex::RecursiveMutex::try_lock() -> bool {
     return true;
 }
 
-void mt::mutex::SharedMutex::lock() {
+void mt::mutex::shared_mutex::lock() {
     while (true) {
         int32_t expected = 0;
         if (m_state.compare_exchange_weak(expected, -1, std::memory_order_acquire)) {
@@ -84,12 +82,12 @@ void mt::mutex::SharedMutex::lock() {
     }
 }
 
-void mt::mutex::SharedMutex::unlock() {
+void mt::mutex::shared_mutex::unlock() {
     m_state.store(0, std::memory_order_release);
     m_state.notify_all();
 }
 
-void mt::mutex::SharedMutex::lock_shared() {
+void mt::mutex::shared_mutex::lock_shared() {
     while (true) {
         if (int32_t expected = m_state.load(std::memory_order_relaxed); expected >= 0) {
             if (m_state.compare_exchange_weak(expected, expected + 1, std::memory_order_acquire)) {
@@ -101,18 +99,18 @@ void mt::mutex::SharedMutex::lock_shared() {
     }
 }
 
-void mt::mutex::SharedMutex::unlock_shared() {
+void mt::mutex::shared_mutex::unlock_shared() {
     if (m_state.fetch_sub(1, std::memory_order_release) == 1) {
         m_state.notify_all();
     }
 }
 
-auto mt::mutex::SharedMutex::try_lock() -> bool {
+auto mt::mutex::shared_mutex::try_lock() -> bool {
     int32_t expected = 0;
     return m_state.compare_exchange_strong(expected, -1, std::memory_order_acquire);
 }
 
-auto mt::mutex::SharedMutex::try_lock_shared() -> bool {
+auto mt::mutex::shared_mutex::try_lock_shared() -> bool {
     int32_t expected = m_state.load(std::memory_order_relaxed);
     if (expected < 0) {
         return false;
@@ -120,7 +118,7 @@ auto mt::mutex::SharedMutex::try_lock_shared() -> bool {
     return m_state.compare_exchange_strong(expected, expected + 1, std::memory_order_acquire);
 }
 
-void mt::mutex::Spinlock::lock() {
+void mt::mutex::spinlock::lock() {
     while (true) {
         if (not m_lock.test_and_set(std::memory_order_acquire)) {
             return;
@@ -129,13 +127,11 @@ void mt::mutex::Spinlock::lock() {
     }
 }
 
-void mt::mutex::Spinlock::unlock() { m_lock.clear(std::memory_order_release); }
+void mt::mutex::spinlock::unlock() { m_lock.clear(std::memory_order_release); }
 
-auto mt::mutex::Spinlock::try_lock() -> bool {
-    return not m_lock.test_and_set(std::memory_order_acquire);
-}
+auto mt::mutex::spinlock::try_lock() -> bool { return not m_lock.test_and_set(std::memory_order_acquire); }
 
-mt::mutex::IPCMutex::IPCMutex(std::string name) :
+mt::mutex::ipc_mutex::ipc_mutex(std::string name) :
     m_name{std::move(name)} {
 
     if (m_name.empty()) {
@@ -145,7 +141,13 @@ mt::mutex::IPCMutex::IPCMutex(std::string name) :
     m_mutex = CreateSemaphoreA(nullptr, 0, 1, m_name.c_str());
     LPVOID lpMsgBuf;
     if (m_mutex == nullptr) {
-        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), reinterpret_cast< LPSTR >(&lpMsgBuf), 0, nullptr);
+        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                      nullptr,
+                      GetLastError(),
+                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                      reinterpret_cast< LPSTR >(&lpMsgBuf),
+                      0,
+                      nullptr);
         throw std::runtime_error("Failed to obtain semaphore handle " + std::string(static_cast< const char* >(lpMsgBuf)));
     }
 #else
@@ -156,7 +158,7 @@ mt::mutex::IPCMutex::IPCMutex(std::string name) :
 #endif
 }
 
-mt::mutex::IPCMutex::~IPCMutex() {
+mt::mutex::ipc_mutex::~ipc_mutex() {
 #if defined(_WIN32) || defined(_WIN64)
     if (m_locked.load()) {
         ReleaseSemaphore(m_mutex, 1, nullptr);
@@ -171,7 +173,7 @@ mt::mutex::IPCMutex::~IPCMutex() {
 #endif
 }
 
-void mt::mutex::IPCMutex::lock() {
+void mt::mutex::ipc_mutex::lock() {
 #if defined(_WIN32) || defined(_WIN64)
     WaitForSingleObject(m_mutex, INFINITE);
 #else
@@ -180,7 +182,7 @@ void mt::mutex::IPCMutex::lock() {
     m_locked.store(true);
 }
 
-void mt::mutex::IPCMutex::unlock() {
+void mt::mutex::ipc_mutex::unlock() {
     if (m_locked.load()) {
 #if defined(_WIN32) || defined(_WIN64)
         ReleaseSemaphore(m_mutex, 1, nullptr);
@@ -191,7 +193,7 @@ void mt::mutex::IPCMutex::unlock() {
     }
 }
 
-auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) -> bool {
+auto mt::mutex::ipc_mutex::try_lock(chrono_duration p_time_out) -> bool {
     if (std::holds_alternative< std::monostate >(p_time_out)) {
 #if defined(_WIN32) || defined(_WIN64)
         if (const auto lock_result = WaitForSingleObject(m_mutex, 0); lock_result == WAIT_OBJECT_0) {
@@ -209,7 +211,9 @@ auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) -> bool {
 #endif
             return false;
         }
-    } else {
+    }
+
+    else {
         std::chrono::nanoseconds time_out;
         std::visit(
             [&time_out]< typename Duration >(Duration&& duration) -> void {
@@ -241,18 +245,19 @@ auto mt::mutex::IPCMutex::try_lock(ChronoDuration p_time_out) -> bool {
             time_out -= std::chrono::nanoseconds{1000};
         }
 #else
-        timespec timespec{};
-        timespec.tv_sec = std::chrono::time_point_cast< std::chrono::seconds >(std::chrono::system_clock::now()).time_since_epoch().count() + std::chrono::duration_cast< std::chrono::seconds >(time_out).count();
-        int32_t lock_result{0};
-        while ((lock_result = sem_timedwait(m_mutex, &timespec)) == -1 && errno == EINTR) { }
-        if (lock_result == 0) {
-            return true;
-        }
+    timespec timespec{};
+    timespec.tv_sec = std::chrono::time_point_cast< std::chrono::seconds >(std::chrono::system_clock::now()).time_since_epoch().count()
+                    + std::chrono::duration_cast< std::chrono::seconds >(time_out).count();
+    int32_t lock_result{0};
+    while ((lock_result = sem_timedwait(m_mutex, &timespec)) == -1 && errno == EINTR) { }
+    if (lock_result == 0) {
+        return true;
+    }
 #endif
     }
     return false;
 }
 
-auto mt::mutex::IPCMutex::name() const -> const std::string& { return m_name; }
+auto mt::mutex::ipc_mutex::name() const -> const std::string& { return m_name; }
 
-auto mt::mutex::IPCMutex::native_handle() const -> NativeHandle { return m_mutex; }
+auto mt::mutex::ipc_mutex::native_handle() const -> mt::mutex::native_handle { return m_mutex; }
