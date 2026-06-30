@@ -17,16 +17,16 @@
 #include <variant>
 
 namespace mt::mutex {
-    class Mutex {
+    class mutex {
       public:
-        Mutex() = default;
+        mutex() = default;
 
-        Mutex(const Mutex&) = delete;
-        Mutex(Mutex&&) = delete;
-        Mutex& operator=(const Mutex&) = delete;
-        Mutex& operator=(Mutex&&) = delete;
+        mutex(const mutex&) = delete;
+        mutex(mutex&&) = delete;
+        mutex& operator=(const mutex&) = delete;
+        mutex& operator=(mutex&&) = delete;
 
-        ~Mutex() = default;
+        ~mutex() = default;
 
         void lock();
         void unlock();
@@ -37,16 +37,16 @@ namespace mt::mutex {
         std::atomic_flag m_lock;
     };
 
-    class RecursiveMutex {
+    class recursive_mutex {
       public:
-        RecursiveMutex() = default;
+        recursive_mutex() = default;
 
-        RecursiveMutex(const RecursiveMutex&) = delete;
-        RecursiveMutex(RecursiveMutex&&) = delete;
-        RecursiveMutex& operator=(const RecursiveMutex&) = delete;
-        RecursiveMutex& operator=(RecursiveMutex&&) = delete;
+        recursive_mutex(const recursive_mutex&) = delete;
+        recursive_mutex(recursive_mutex&&) = delete;
+        recursive_mutex& operator=(const recursive_mutex&) = delete;
+        recursive_mutex& operator=(recursive_mutex&&) = delete;
 
-        ~RecursiveMutex() = default;
+        ~recursive_mutex() = default;
 
         void lock();
         void unlock();
@@ -59,16 +59,16 @@ namespace mt::mutex {
         std::atomic_flag m_lock;
     };
 
-    class SharedMutex {
+    class shared_mutex {
       public:
-        SharedMutex() = default;
+        shared_mutex() = default;
 
-        SharedMutex(const SharedMutex&) = delete;
-        SharedMutex(SharedMutex&&) = delete;
-        SharedMutex& operator=(const RecursiveMutex&) = delete;
-        RecursiveMutex& operator=(SharedMutex&&) = delete;
+        shared_mutex(const shared_mutex&) = delete;
+        shared_mutex(shared_mutex&&) = delete;
+        shared_mutex& operator=(const shared_mutex&) = delete;
+        shared_mutex& operator=(shared_mutex&&) = delete;
 
-        ~SharedMutex() = default;
+        ~shared_mutex() = default;
 
         void lock();
         void unlock();
@@ -79,20 +79,20 @@ namespace mt::mutex {
         [[nodiscard]] auto try_lock_shared() -> bool;
 
       private:
-        std::atomic_uint8_t m_read_counter{0};
-        std::atomic_flag m_lock;
+        // 0 = unlocked, -1 = write-locked, >0 = number of active readers
+        std::atomic< int32_t > m_state{0};
     };
 
-    class Spinlock {
+    class spinlock {
       public:
-        Spinlock() = default;
+        spinlock() = default;
 
-        Spinlock(const Spinlock&) = delete;
-        Spinlock(Spinlock&&) = delete;
-        Spinlock& operator=(const Spinlock&) = delete;
-        Spinlock& operator=(Spinlock&&) = delete;
+        spinlock(const spinlock&) = delete;
+        spinlock(spinlock&&) = delete;
+        spinlock& operator=(const spinlock&) = delete;
+        spinlock& operator=(spinlock&&) = delete;
 
-        ~Spinlock() = default;
+        ~spinlock() = default;
 
         void lock();
         void unlock();
@@ -104,36 +104,36 @@ namespace mt::mutex {
     };
 
 #if defined(_WIN32) || defined(_WIN64)
-    using NativeHandle = HANDLE;
+    using native_handle = HANDLE;
 #else
-    using NativeHandle = sem_t *;
+    using native_handle = sem_t *;
 #endif
 
-    using ChronoDuration
+    using chrono_duration
         = std::variant< std::monostate, std::chrono::minutes, std::chrono::seconds, std::chrono::milliseconds, std::chrono::microseconds, std::chrono::nanoseconds >;
 
-    class IPCMutex {
+    class ipc_mutex {
       public:
-        explicit IPCMutex(std::string name);
+        explicit ipc_mutex(std::string name);
 
-        IPCMutex(const IPCMutex& other) = delete;
-        IPCMutex(IPCMutex&& other) = delete;
-        IPCMutex& operator=(const IPCMutex& other) = delete;
-        IPCMutex& operator=(IPCMutex&& other) = delete;
+        ipc_mutex(const ipc_mutex& other) = delete;
+        ipc_mutex(ipc_mutex&& other) = delete;
+        ipc_mutex& operator=(const ipc_mutex& other) = delete;
+        ipc_mutex& operator=(ipc_mutex&& other) = delete;
 
-        ~IPCMutex();
+        ~ipc_mutex();
 
         void lock();
         void unlock();
 
-        [[nodiscard]] auto try_lock(ChronoDuration p_time_out = std::monostate()) -> bool;
+        [[nodiscard]] auto try_lock(chrono_duration p_time_out = std::monostate()) -> bool;
         [[nodiscard]] auto name() const -> const std::string&;
-        [[nodiscard]] auto native_handle() const -> NativeHandle;
+        [[nodiscard]] auto native_handle() const -> native_handle;
 
       private:
         std::string m_name;
-        NativeHandle m_mutex{nullptr};
-        bool m_locked{false};
+        mt::mutex::native_handle m_mutex{nullptr};
+        std::atomic_bool m_locked{false};
     };
-}  // namespace mt::utility::mutex
+}  // namespace mt::mutex
 #endif  //MUTEX_INCLUDE_MUTEX_HPP
