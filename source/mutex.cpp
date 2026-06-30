@@ -219,7 +219,7 @@ auto mt::mutex::ipc_mutex::try_lock(chrono_duration p_time_out) -> bool {
             [&time_out]< typename Duration >(Duration&& duration) -> void {
                 using DurationType = std::decay_t< Duration >;
                 if constexpr (std::is_same_v< DurationType, std::monostate >) {
-                    assert(!"Unreachable code");
+                    assert(false && "Unreachable code");
                 } else {
                     time_out = std::chrono::duration_cast< std::chrono::nanoseconds >(duration);
                 }
